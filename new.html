@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Firebase Image Upload, Retrieval, and Download</title>
+  <style> 
+    body {
+      font-family: 'Arial', sans-serif;
+      background-color: #f4f4f9;
+      margin: 0;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    input[type="text"] {
+      padding: 10px;
+      border-radius: 5px;
+      border: 1px solid #ccc;
+      width: 300px;
+      font-size: 16px;
+    }
+
+    button {
+      padding: 10px 20px;
+      margin: 10px;
+      background-color: #28a745;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 16px;
+      transition: background-color 0.3s ease;
+    }
+
+    button:hover {
+      background-color: #218838;
+    }
+
+    #upProgress {
+      font-size: 14px;
+      color: #555;
+    }
+
+    img {
+      height: 200px;
+      width: 200px;
+      object-fit: cover;
+      border: 2px solid #000;
+      margin-top: 20px;
+      border-radius: 10px;
+    }
+
+    label {
+      font-size: 18px;
+      color: #333;
+      margin-top: 10px;
+    }
+  </style>
+</head>               
+<body>
+  Image Name: <input id="namebox" type="text"> <br><br>
+  <img id="myimg">
+  <label id="upProgress"></label> <br><br>
+
+  <button id="select">Select Image</button>
+  <button id="upload">Upload Image</button>
+  
+  <!-- Firebase scripts -->
+  <script src="https://www.gstatic.com/firebasejs/7.15.5/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/7.15.5/firebase-auth.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/7.15.5/firebase-database.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/7.13.1/firebase-storage.js"></script>
+
+  <script>
+    var ImgName, ImgUrl;
+    var files = [];
+    var reader = new FileReader();
+
+    // Firebase configuration
+    const firebaseConfig = {
+      apiKey: "AIzaSyBR_Zb0tK1ekJNoF-b9H7MrSMrHCLJiplE",
+      authDomain: "images-12ca8.firebaseapp.com",
+      projectId: "images-12ca8",
+      storageBucket: "images-12ca8.appspot.com",
+      messagingSenderId: "411523922947",
+      appId: "1:411523922947:web:d2a951b58a4de908c52236"
+    };
+
+    // Initialize Firebase
+    firebase.initializeApp(firebaseConfig);
+
+    // Select image
+    document.getElementById("select").onclick = function(e) {
+      var input = document.createElement('input');
+      input.type = 'file';
+      input.onchange = e => {
+        files = e.target.files;
+        reader = new FileReader();
+        reader.onload = function() {
+          document.getElementById("myimg").src = reader.result;
+        };
+        reader.readAsDataURL(files[0]);
+      };
+      input.click();
+    };
+
+    // Upload image
+    document.getElementById('upload').onclick = function() {
+      ImgName = document.getElementById('namebox').value;
+      var uploadTask = firebase.storage().ref('Images/' + ImgName + ".png").put(files[0]);
+
+      uploadTask.on('state_changed', function(snapshot) {
+        var progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+        document.getElementById('upProgress').innerHTML = 'Upload ' + progress + '%';
+      }, 
+      function(error) {
+        alert('Error in saving the image: ' + error.message);
+      }, 
+      function() {
+        uploadTask.snapshot.ref.getDownloadURL().then(function(url) {
+          ImgUrl = url;
+          firebase.database().ref('Pictures/' + ImgName).set({
+            Name: ImgName,
+            Link: ImgUrl
+          });
+          alert('Image uploaded successfully!');
+        });
+      });
+    };
+
+    // Retrieve image
+    document.getElementById('retrieve').onclick = function() {
+      ImgName = document.getElementById('namebox').value;
+      firebase.database().ref('Pictures/' + ImgName).once('value').then(function(snapshot) {
+        if (snapshot.exists()) {
+          ImgUrl = snapshot.val().Link;
+          document.getElementById('myimg').src = ImgUrl;
+          alert('Image retrieved successfully!');
+        } else {
+          alert('No image found with that name');
+        }
+      });
+    };
+
+    // Download image
+    document.getElementById('download').onclick = function() {
+      ImgName = document.getElementById('namebox').value;
+      firebase.database().ref('Pictures/' + ImgName).once('value').then(function(snapshot) {
+        if (snapshot.exists()) {
+          ImgUrl = snapshot.val().Link;
+          var link = document.createElement('a');
+          link.href = ImgUrl;
+          link.download = ImgName + ".png"; // Sets the download file name
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link); // Clean up after download
+          alert('Image downloaded successfully!');
+        } else {
+          alert('No image found with that name to download');
+        }
+      });
+    };
+  </script>
+</body>
+</html>
